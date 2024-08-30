@@ -18,29 +18,16 @@
 #include "iostream"
 #include <cstring>
 
-const int POST = 9987;
-const char *EXIT = "exit";
-
-typedef void (*Callback)(void *);
-
-int read_event = 2;
-int write_event = 4;
-
-struct FdNode {
-    int fd;
-    int mask;
-    FdNode *next;
-    FdNode *prev;
-    Callback callback;
-};
+extern const int read_event;
+extern const int write_event;
 
 void _free(FdNode *node);
 
-void write_handler(void *param);
+void select_write_handler(void *param);
 
-void read_handler(void *param);
+void select_read_handler(void *param);
 
-void accept_handler(void *param);
+void select_accept_handler(void *param);
 
 struct fd_set readfds, writefds, errorfds;
 
@@ -108,16 +95,16 @@ void change_mask(FdNode *params, const int fd, int type, Callback callback) {
     dummy->callback = callback;
 }
 
-void write_handler(void *param) {
+void select_write_handler(void *param) {
     int clientFd = *(int *) param;
     char *msg = "good\r\n";
     //注意sizeof(msg)和strlen(msg)的区别
     write(clientFd, msg, strlen(msg));
     write(clientFd, msg, strlen(msg));
-    change_mask(&fdNodes, clientFd, read_event, read_handler);
+    change_mask(&fdNodes, clientFd, read_event, select_read_handler);
 }
 
-void read_handler(void *param) {
+void select_read_handler(void *param) {
     int clientFd = *(int *) param;
     char buf_cache[512];
     memset(buf_cache, 0, sizeof buf_cache);
@@ -135,15 +122,15 @@ void read_handler(void *param) {
             close(clientFd);
             return;
         }
-        change_mask(&fdNodes, clientFd, write_event, write_handler);
+        change_mask(&fdNodes, clientFd, write_event, select_write_handler);
     }
 }
 
-void accept_handler(void *param) {
+void select_accept_handler(void *param) {
     int servFd = *(int *) param;
     int clientFd = accept(servFd, nullptr, nullptr);
     std::cout << "connection active" << std::endl;
-    register_read_only(&fdNodes, clientFd, read_event, read_handler);
+    register_read_only(&fdNodes, clientFd, read_event, select_read_handler);
 }
 
 inline int max(int a, int b) {
@@ -214,7 +201,7 @@ void Select::start() {
     bind(servFd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in));
     listen(servFd, 8);
 
-    register_read_only(&fdNodes, servFd, read_event, accept_handler);
+    register_read_only(&fdNodes, servFd, read_event, select_accept_handler);
 
     while (1) {
         struct timeval timeout{};

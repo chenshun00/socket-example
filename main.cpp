@@ -4,6 +4,7 @@
 #include "domain/Domain.h"
 #include "fork/Fork.h"
 #include "multiplexing/select/Select.h"
+#include "multiplexing/poll/Poll.h"
 
 void start() {
     Server::start(9987);
@@ -27,9 +28,14 @@ void select_start() {
     Select::start();
 }
 
+void poll_start(){
+    Poll poll(9987);
+    poll.start();
+}
+
 int main() {
     std::cout << "Hello, World!" << std::endl;
     printDomain("183.2.172.42");
-    select_start();
+    poll_start();
     return 0;
 }
